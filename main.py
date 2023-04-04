@@ -27,12 +27,17 @@ class Parser:
         self.secret_key = ''
         self.active_token = ''
         self.active_secret_key = ''
-        self.base_url = 'https://berlingerhaus.ru/'
+        self.base_url = 'https://berlinger-haus-shop.ru'
         self.article_numbers = []
         self.links_products = {}
         self.article_imgs = {}
         self.article_save_imgs = {}
         self.read_data_file = ''
+
+
+
+
+
 
     def open_token_file(self):
         try:
@@ -78,59 +83,93 @@ class Parser:
                            f'Ошибка {exc} в чтении табличного документа data.xlsm, функция - get_article_number()\n')
             raise IndexError
 
-    async def get_link_product(self, session, article):
-        # try:
+    def get_link_prodicts(self):
+        for art in self.article_numbers:
+            print(art)
+            response = requests.get(f'{self.base_url}/search?q={art}', headers=self.headers)
+            soup = BeautifulSoup(response.text, features='lxml')
 
-        retry_options = ExponentialRetry(attempts=5)
-        retry_client = RetryClient(raise_for_status=False, retry_options=retry_options, client_session=session,
-                                   start_timeout=0.5)
-        async with retry_client.get(
-                url=f'{self.base_url}search?q={article}&spell=1&where=') as response:
-            print(f'{self.base_url}search?q={article}&spell=1&where=')
-            if response.ok:
+            product_not_found = soup.find('p', class_='warning')
+            if bool(product_not_found) is False:
+                if f'{self.base_url}/search?q={art}' == response.url:
+                    pass
+                #когда ссылка на новую страницу с продуктом
+                else:
+                    article_on_page = soup.find('div', class_='goodsDataMainModificationArtNumber').find('span').text.strip()
+                    print(art,  article_on_page)
+                    #при совпадении искомого артикула с артикулом на странице
+                    if art[3:] in article_on_page:
+                        some_links_imgs = soup.find('div', class_='thumblist-box').find_all('li')
+                        # при нескольких изображениях
+                        if len(some_links_imgs) > 0:
+                            print([img.find('a')['href'] for img in some_links_imgs])
+                        #при одном изображении
+                        else:
+                            link_img = soup.find('div', class_='general-img popup-gallery').find('a')['href']
+                            print(link_img)
+                    # если на странице артикул не совпадает с искомым
+                    else:
+                        continue
 
-                # sys.stdout.write("\r")
-                # sys.stdout.write(f'Получаю ссылку на товар {article}')
-                # sys.stdout.flush()
+            else:
+                print(product_not_found.text)
 
-                resp = await response.text()
-                soup = BeautifulSoup(resp, features='lxml')
-                product_not_found = soup.find('div', class_='catalog_item main_item_wrapper item_wrap')
-                print(product_not_found)
-                # if bool(product_not_found) is False:
-                #     # print(f'Получаю ссылку на товар {article}')
-                #     print('True')
-                #     link_found = soup.find_all('div', class_='item col-sm-4 col-sms-6 col-smb-12')
-                #
-                #     print(len(link_found), article)
-                #     # links_imgs = soup.find('div', class_='thumblist-box')
-                #     # some_links_imgs = links_imgs.find_all('a', class_='thumblisticon')
-                #     # link_product = soup.find('div', class_='catalog-item__inner').find('a')
-                #     # self.links_products[article] = link_product["href"]
-                # else:
-                #     print(f'{article} не найдено')
 
-        # except Exception as exc:
-        #     print(f'Ошибка {exc} в получении ссылок на товары')
-        #     with open('error.txt', 'a', encoding='utf-8') as file:
-        #         file.write(f'{datetime.datetime.now().strftime("%d-%m-%y %H:%M")} '
-        #                    f'Ошибка {exc} в получении ссылок на товары, функция - get_link_product()\n')
 
-    async def get_link_product_run_async(self):
-        connector = aiohttp.TCPConnector(force_close=True)
-        async with aiohttp.ClientSession(headers=self.headers, connector=connector) as session:
-            tasks = []
-            i = 0
-            for article in self.article_numbers:
-                # i += 1
-                # if i == 2:
-                #
-                #     break
-                task = asyncio.create_task(self.get_link_product(session, article))
-                tasks.append(task)
-                if len(tasks) % 50 == 0:
-                    await asyncio.gather(*tasks)
-            await asyncio.gather(*tasks)
+
+    # async def get_link_product(self, session, article):
+    #     # try:
+    #
+    #     retry_options = ExponentialRetry(attempts=5)
+    #     retry_client = RetryClient(raise_for_status=False, retry_options=retry_options, client_session=session,
+    #                                start_timeout=0.5)
+    #     async with retry_client.get(
+    #             url=f'{self.base_url}search?q={article}&spell=1&where=') as response:
+    #         print(f'{self.base_url}search?q={article}&spell=1&where=')
+    #         if response.ok:
+    #
+    #             # sys.stdout.write("\r")
+    #             # sys.stdout.write(f'Получаю ссылку на товар {article}')
+    #             # sys.stdout.flush()
+    #
+    #             resp = await response.text()
+    #             soup = BeautifulSoup(resp, features='lxml')
+    #             product_not_found = soup.find('div', class_='catalog_item main_item_wrapper item_wrap')
+    #             print(product_not_found)
+    #             # if bool(product_not_found) is False:
+    #             #     # print(f'Получаю ссылку на товар {article}')
+    #             #     print('True')
+    #             #     link_found = soup.find_all('div', class_='item col-sm-4 col-sms-6 col-smb-12')
+    #             #
+    #             #     print(len(link_found), article)
+    #             #     # links_imgs = soup.find('div', class_='thumblist-box')
+    #             #     # some_links_imgs = links_imgs.find_all('a', class_='thumblisticon')
+    #             #     # link_product = soup.find('div', class_='catalog-item__inner').find('a')
+    #             #     # self.links_products[article] = link_product["href"]
+    #             # else:
+    #             #     print(f'{article} не найдено')
+    #
+    #     # except Exception as exc:
+    #     #     print(f'Ошибка {exc} в получении ссылок на товары')
+    #     #     with open('error.txt', 'a', encoding='utf-8') as file:
+    #     #         file.write(f'{datetime.datetime.now().strftime("%d-%m-%y %H:%M")} '
+    #     #                    f'Ошибка {exc} в получении ссылок на товары, функция - get_link_product()\n')
+    #
+    # async def get_link_product_run_async(self):
+    #     connector = aiohttp.TCPConnector(force_close=True)
+    #     async with aiohttp.ClientSession(headers=self.headers, connector=connector) as session:
+    #         tasks = []
+    #         i = 0
+    #         for article in self.article_numbers:
+    #             # i += 1
+    #             # if i == 2:
+    #             #
+    #             #     break
+    #             task = asyncio.create_task(self.get_link_product(session, article))
+    #             tasks.append(task)
+    #             if len(tasks) % 50 == 0:
+    #                 await asyncio.gather(*tasks)
+    #         await asyncio.gather(*tasks)
 
     async def get_link_img(self, session, link):
         try:
@@ -320,46 +359,47 @@ class Parser:
                            f'Ошибка {exc} в записи итогового файла, функция - write_final_file()\n')
 
     def run(self):
-        try:
-            # asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-            print('Начало работы')
-            self.open_token_file()
-            self.read_file()
-            print('Получаю артикул товаров')
-            self.get_article_number()
-            print('\rАртикулы получил')
-            print('---------------------------\n')
-            print('Получаю ссылки на товары')
-            asyncio.run(self.get_link_product_run_async())
-            print('\nСсылки получены')
-            # print('---------------------------\n')
-            # print('Ищу изображения товаров')
-            # asyncio.run(self.get_link_img_run_async())
-            # print('\nИзображения получены')
-            # print('---------------------------\n')
-            # print('Скачиваю изображения')
-            # asyncio.run(self.save_images_run_async())
-            # print('\nСкачивание завершено')
-            # print('---------------------------\n')
-            # print('Измененяю размер изображений')
-            # self.resize_img()
-            # print('\rРазмеры изменены')
-            # print('---------------------------\n')
-            # print('Загружаю изображения на фотохостинг')
-            # self.sending_to_fotohosting()
-            # print('\nЗагрузка завершена')
-            # print('---------------------------\n')
-            # print('Записываю в итоговый файл')
-            # self.write_final_file()
-            print('Работа завершена')
-            print('Для выхода нажмите Enter')
-            input()
-            print('---------------------------\n')
-        except Exception as exc:
-            print(f'Произошла ошибка {exc}')
-            print('Для выхода нажмите Enter')
-            input()
-            print('---------------------------\n')
+        # try:
+        # asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        print('Начало работы')
+        self.open_token_file()
+        self.read_file()
+        print('Получаю артикул товаров')
+        self.get_article_number()
+        print('\rАртикулы получил')
+        print('---------------------------\n')
+        print('Получаю ссылки на товары')
+        self.get_link_prodicts()
+        # asyncio.run(self.get_link_product_run_async())
+        print('\nСсылки получены')
+        # print('---------------------------\n')
+        # print('Ищу изображения товаров')
+        # asyncio.run(self.get_link_img_run_async())
+        # print('\nИзображения получены')
+        # print('---------------------------\n')
+        # print('Скачиваю изображения')
+        # asyncio.run(self.save_images_run_async())
+        # print('\nСкачивание завершено')
+        # print('---------------------------\n')
+        # print('Измененяю размер изображений')
+        # self.resize_img()
+        # print('\rРазмеры изменены')
+        # print('---------------------------\n')
+        # print('Загружаю изображения на фотохостинг')
+        # self.sending_to_fotohosting()
+        # print('\nЗагрузка завершена')
+        # print('---------------------------\n')
+        # print('Записываю в итоговый файл')
+        # self.write_final_file()
+        print('Работа завершена')
+        print('Для выхода нажмите Enter')
+        input()
+        print('---------------------------\n')
+        # except Exception as exc:
+        #     print(f'Произошла ошибка {exc}')
+        #     print('Для выхода нажмите Enter')
+        #     input()
+        #     print('---------------------------\n')
 
 
 def main():
