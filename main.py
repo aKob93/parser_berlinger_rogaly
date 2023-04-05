@@ -84,6 +84,7 @@ class Parser:
             raise IndexError
 
     def get_link_prodicts(self):
+        # self.article_numbers = ['BH-9093']
         for art in self.article_numbers:
             print(art)
             response = requests.get(f'{self.base_url}/search?q={art}', headers=self.headers)
@@ -91,8 +92,10 @@ class Parser:
 
             product_not_found = soup.find('p', class_='warning')
             if bool(product_not_found) is False:
+                #TODO обработать когда на странице несколько товаров
                 if f'{self.base_url}/search?q={art}' == response.url:
-                    pass
+                    found_links_some_product = soup.find_all('div', class_='item-img')
+                    print(link.find('a')['href'] for link in found_links_some_product)
                 #когда ссылка на новую страницу с продуктом
                 else:
                     article_on_page = soup.find('div', class_='goodsDataMainModificationArtNumber').find('span').text.strip()
@@ -101,18 +104,29 @@ class Parser:
                     if art[3:] in article_on_page:
                         some_links_imgs = soup.find('div', class_='thumblist-box').find_all('li')
                         # при нескольких изображениях
-                        if len(some_links_imgs) > 0:
-                            print([img.find('a')['href'] for img in some_links_imgs])
+                        if len(some_links_imgs) > 1:
+                            self.article_imgs.setdefault(art, [img.find('a')['href'] for img in some_links_imgs])
+                        elif len(some_links_imgs) == 1:
+                            link_img_found = soup.find('div', class_='product-img-box col-md-5 col-sm-12 col-sms-12')
+                            link_img = link_img_found.find_all('a')
+                            self.article_imgs.setdefault(art, [link['href'] for link in link_img])
+
                         #при одном изображении
                         else:
-                            link_img = soup.find('div', class_='general-img popup-gallery').find('a')['href']
-                            print(link_img)
+                            link_img_found = soup.find('div', class_='general-img popup-gallery')
+                            if link_img_found.find('a') == None:
+                                continue
+                            else:
+                                link_img = link_img_found.find_all('a')
+                                self.article_imgs.setdefault(art,[link['href'] for link in link_img])
+
                     # если на странице артикул не совпадает с искомым
                     else:
                         continue
 
             else:
                 print(product_not_found.text)
+        print(self.article_imgs)
 
 
 
