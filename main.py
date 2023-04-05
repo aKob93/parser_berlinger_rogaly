@@ -86,16 +86,18 @@ class Parser:
     def get_link_prodicts(self):
         # self.article_numbers = ['BH-9093']
         for art in self.article_numbers:
-            print(art)
-            response = requests.get(f'{self.base_url}/search?q={art}', headers=self.headers)
+            if len(art) == 1:
+                continue
+            response = requests.get(f'{self.base_url}/search?q={art[3:]}', headers=self.headers)
             soup = BeautifulSoup(response.text, features='lxml')
 
             product_not_found = soup.find('p', class_='warning')
             if bool(product_not_found) is False:
+
                 #TODO обработать когда на странице несколько товаров
-                if f'{self.base_url}/search?q={art}' == response.url:
+                if f'{self.base_url}/search?q={art[3:]}' == response.url:
                     found_links_some_product = soup.find_all('div', class_='item-img')
-                    print(link.find('a')['href'] for link in found_links_some_product)
+                    self.links_products[art] = found_links_some_product[0].find('a')['href']
                 #когда ссылка на новую страницу с продуктом
                 else:
                     article_on_page = soup.find('div', class_='goodsDataMainModificationArtNumber').find('span').text.strip()
@@ -118,15 +120,22 @@ class Parser:
                                 continue
                             else:
                                 link_img = link_img_found.find_all('a')
-                                self.article_imgs.setdefault(art,[link['href'] for link in link_img])
-
+                                self.article_imgs.setdefault(art, [link['href'] for link in link_img])
                     # если на странице артикул не совпадает с искомым
                     else:
                         continue
 
             else:
                 print(product_not_found.text)
+        print(self.links_products)
         print(self.article_imgs)
+
+    #TODO проход по ссылкам и сбор недостающих изображений
+    async def get_link_img(self):
+        for link in self.links_products:
+            resp = requests.get(self.links_products[link])
+            soup = BeautifulSoup(resp.text, features='lxml')
+
 
 
 
