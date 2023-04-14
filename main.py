@@ -49,11 +49,11 @@ class Parser:
     def read_file(self):
         try:
             for file in os.listdir():
-                if file[:6] == 'data1.':
-                    print(f'Получаю артикул товаров из файла {file}')
-                    self.read_data1_file = file
-                    self.get_article_number_data1()
-                elif file[:6] == 'data2.':
+                # if file[:6] == 'data1.':
+                #     print(f'Получаю артикул товаров из файла {file}')
+                #     self.read_data1_file = file
+                #     self.get_article_number_data1()
+                if file[:6] == 'data2.':
                     print(f'Получаю артикул товаров из файла {file}')
                     self.read_data2_file = file
                     self.get_article_number_data2()
@@ -354,8 +354,16 @@ class Parser:
                         for cell in row:
                             if cell.value == None:
                                 continue
-                            elif cell.value.strip()[:-3] in article:
-                                ws[f'{columns[i]}{cell.row}'] = link
+                            else:
+                                try:
+                                    article_numbers_in_table = re.findall(r'\d+', cell.value.strip())
+                                    article_numbers_in_table = str(*article_numbers_in_table)
+                                    if article_numbers_in_table in article:
+                                        ws[f'{columns[i]}{cell.row}'] = link
+                                except Exception as exc:
+                                    print(cell.value.strip())
+                                    print(article)
+                                    continue
 
 
             file_name = f'./final_data/data2_final_{date_now.strftime("%d-%m-%y_%H-%M")}.xlsx'
@@ -397,7 +405,7 @@ class Parser:
             print('\nЗагрузка завершена')
             print('---------------------------\n')
             print('Записываю в итоговый файл data1_final')
-            self.write_final_file_data1()
+            # self.write_final_file_data1()
             print('Записываю в итоговый файл data2_final')
             self.write_final_file_data2()
             print('Работа завершена')

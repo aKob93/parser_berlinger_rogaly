@@ -411,9 +411,13 @@ class Parser:
         #     print('---------------------------\n')
 
 
-def main():
-    p = Parser()
-    p.run()
+# def main():
+#     p = Parser()
+#     p.run()
+#
+# if __name__ == '__main__':
+#     main()
 
-if __name__ == '__main__':
-    main()
+
+ll = ['2102']
+print(str(*ll))
