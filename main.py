@@ -26,6 +26,7 @@ class Parser:
         self.secret_key = ''
         self.active_token = ''
         self.active_secret_key = ''
+        self.active_number = 0
         self.base_url = 'https://berlinger-haus-shop.ru'
         self.article_numbers = []
         self.links_products = {}
@@ -252,10 +253,11 @@ class Parser:
                            f'Ошибка {exc} в изменении разрешения изображений, функция - resize_img()\n')
 
     def sending_to_fotohosting(self):
-        self.active_token = self.token[0]
-        self.active_secret_key = self.secret_key[0]
+        self.active_token = self.token[self.active_number]
+        self.active_secret_key = self.secret_key[self.active_number]
+        # ИЗМЕНЕНИЕ 'Authorization': f'TOKEN {self.active_token}' НА 'Authorization': f'Bearer {self.active_secret_key}'
         headers = {
-            'Authorization': f'TOKEN {self.active_token}',
+            'Authorization': f'Bearer {self.active_secret_key}',
         }
         for img_url in self.article_imgs:
 
@@ -270,9 +272,10 @@ class Parser:
             for img in img_links:
 
                 try:
+                    # ИЗМЕНЕНИE 'image': open(img, 'rb'), 'secret_key': (None, self.active_secret_key) НА
+                    # 'image': open(img, 'rb'). Удалено поле secret_key
                     files = {
                         'image': open(img, 'rb'),
-                        'secret_key': (None, self.active_secret_key),
                     }
                     response = requests.post('https://api.imageban.ru/v1', headers=headers, files=files)
                     if response.json()['status'] == 200:
@@ -282,6 +285,7 @@ class Parser:
                         print(f'Не удалось загрузить {img}')
                         continue
                 except KeyError:
+                    print(response.json()["error"]["message"])
                     print(f'{img_url} ошибка загрузки изображения - {response.json()["error"]["message"]}\n')
                     with open('error.txt', 'a', encoding='utf-8') as file:
                         file.write(f'{datetime.datetime.now().strftime("%d-%m-%y %H:%M")} '
@@ -290,14 +294,17 @@ class Parser:
                         continue
                     elif response.json()["error"]["message"] == \
                             'Exceeded the daily limit of uploaded images for your account':
-                        print('Переключение на второй аккаунт')
-
-                        self.active_token = self.token[1]
-                        self.active_secret_key = self.secret_key[1]
-
+                        print('Переключение на следующий аккаунт')
+                        # если аккаунт сменился то активный номер +1 и активный токен берётся следующий
+                        self.active_number += 1
+                        self.active_token = self.token[self.active_number]
+                        self.active_secret_key = self.secret_key[self.active_number]
+                        # ТУТ ТОЖЕ ИЗМЕНЕНИЕ
+                        headers = {
+                            'Authorization': f'Bearer {self.active_secret_key}',
+                        }
                         files = {
                             'image': open(img, 'rb'),
-                            'secret_key': (None, self.active_secret_key),
                         }
                         response = requests.post('https://api.imageban.ru/v1', headers=headers, files=files)
                         if response.json()['status'] == 200:
